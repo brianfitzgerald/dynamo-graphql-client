@@ -32,14 +32,11 @@ type Query {
   songByGenre(genre: String, table: String): Song
 }
 type Mutation {
-  createSong(id: String, name: String, SpotifyURL: String): String
+  createSong(id: String, name: String, SpotifyURL: String): Song
 }
 `
 
 const schema = buildSchema(schemaString)
-
-// const parsedAST = parse(schemaString)
-// console.log("parsed ast", JSON.stringify(parsedAST, null, 2))
 
 app.use(
   "/graphql",

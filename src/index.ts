@@ -48,29 +48,49 @@ const DynamoResolver = (
   client: DynamoDB,
   field: GraphQLField<any, any>,
   table: string,
+  isMutation: boolean,
   requestParams: any,
   response: Response
 ) =>
   new Promise((resolve, reject) => {
     // use projection expression
-    client.getItem(
-      {
-        TableName: table,
-        Key: {
-          id: {
-            S: requestParams.id
+
+    console.log(requestParams)
+
+    const dynamoKeys = DynamoDB.Converter.marshall(requestParams)
+
+    console.log(dynamoKeys)
+
+    if (isMutation) {
+      client.putItem(
+        {
+          TableName: table,
+          Item: dynamoKeys
+        },
+        (err, result) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve()
           }
         }
-      },
-      (err, result) => {
-        if (err || !result.Item) {
-          reject(err)
-        } else {
-          const item = DynamoDB.Converter.unmarshall(result.Item)
-          resolve(item)
+      )
+    } else {
+      client.getItem(
+        {
+          TableName: table,
+          Key: dynamoKeys
+        },
+        (err, result) => {
+          if (err || !result.Item) {
+            reject(err)
+          } else {
+            const item = DynamoDB.Converter.unmarshall(result.Item)
+            resolve(item)
+          }
         }
-      }
-    )
+      )
+    }
   })
 
 export const buildResolver = (
@@ -81,6 +101,8 @@ export const buildResolver = (
   const finalMapping: ResolverMapping = {}
 
   const schemaTypes: TypeMap = schema.getTypeMap()
+
+  console.log(schemaTypes)
 
   const queryType = schema.getQueryType()
 
@@ -93,7 +115,27 @@ export const buildResolver = (
         key,
         client,
         fields[key],
-        tableMapping[tableType]
+        tableMapping[tableType],
+        false
+      )
+    })
+  }
+
+  const mutationType = schema.getMutationType()
+
+  if (mutationType) {
+    const fields = mutationType.getFields()
+    console.log(fields)
+
+    Object.keys(fields).forEach(key => {
+      const tableType = fields[key].type.toString()
+      finalMapping[key] = DynamoResolver.bind(
+        null,
+        key,
+        client,
+        fields[key],
+        tableMapping[tableType],
+        true
       )
     })
   }
